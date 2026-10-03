@@ -21,6 +21,12 @@ jobs:
       - name: Build program (PyInstaller)
         run: pyinstaller --noconfirm --windowed --name MP4Cutter --collect-all imageio_ffmpeg mp4_cutter.py
 
+      - name: Build debug version
+        run: |
+          pyinstaller --noconfirm --console --debug bootloader --name MP4Cutter_debug --collect-all imageio_ffmpeg --distpath dist_debug --workpath build_debug mp4_cutter.py
+          Set-Content -Path dist_debug\MP4Cutter_debug\run_debug.bat -Encoding ascii -Value "@echo off`r`ncd /d %~dp0`r`nMP4Cutter_debug.exe`r`necho.`r`necho ===== END (code %errorlevel%) =====`r`npause"
+          Compress-Archive -Path dist_debug\MP4Cutter_debug -DestinationPath MP4Cutter_debug.zip
+
       - name: Make portable zip
         run: Compress-Archive -Path dist\MP4Cutter -DestinationPath MP4Cutter_portable.zip
 
@@ -39,3 +45,8 @@ jobs:
         with:
           name: MP4Cutter_portable
           path: MP4Cutter_portable.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MP4Cutter_debug
+          path: MP4Cutter_debug.zip
