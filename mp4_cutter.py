@@ -497,6 +497,7 @@ class Timeline(QWidget):
     LANE_SP = 8
     RULER_H = 28
     HANDLE_R = 10
+    SNAP_PX = 9     # 이 거리(px) 안으로 오면 구간 끝에 착 붙음
     MIN_LEN = 100
     N_THUMBS = 12
     TICK_STEPS = [1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000,
@@ -514,6 +515,7 @@ class Timeline(QWidget):
         self.selected = -1
         self.dragging = False
         self.edit = None
+        self.snap = None        # (ms, 색, 설명) 착 붙은 상태
         self.thumbs = [None] * self.N_THUMBS
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.NoFocus)
@@ -673,7 +675,15 @@ class Timeline(QWidget):
         # 현재 위치
         if self.duration > 0:
             x = self._x(self.position)
-            p.setPen(QPen(QColor("#111827"), 2))
+            if self.snap:
+                sc = QColor(self.snap[1])
+                glow = QColor(sc)
+                glow.setAlpha(70)
+                p.setPen(QPen(glow, 8))
+                p.drawLine(QPointF(x, self.STRIP_Y - 4), QPointF(x, self._lanes_bottom() - 2))
+                p.setPen(QPen(sc, 3))
+            else:
+                p.setPen(QPen(QColor("#111827"), 2))
             p.drawLine(QPointF(x, self.STRIP_Y - 4), QPointF(x, self._lanes_bottom() - 2))
             text = fmt_t1(self.position)
             bf = QFont(self.font())
@@ -737,8 +747,31 @@ class Timeline(QWidget):
                 return i
         return -1
 
-    def _seek(self, x):
+    def _snapped(self, x, exclude=None):
+        """x 근처에 구간 시작/끝이 있으면 그 시간으로 맞춘다. (Alt를 누르면 끔)"""
         ms = self._ms(x)
+        if QApplication.keyboardModifiers() & Qt.AltModifier:
+            return ms, None
+        best = None
+        for i, (st, en) in enumerate(self.segments):
+            if i == exclude:
+                continue
+            col = SEG_COLORS[i % len(SEG_COLORS)]
+            for v, name in ((st, "시작"), (en, "끝")):
+                d = abs(self._x(v) - x)
+                if d <= self.SNAP_PX and (best is None or d < best[0]):
+                    best = (d, v, col, f"구간 {i + 1} {name}")
+        for v, name in ((self.mark_start, "지정 중인 시작점"), (self.mark_end, "지정 중인 끝점")):
+            if v is not None and exclude is None:
+                d = abs(self._x(v) - x)
+                if d <= self.SNAP_PX and (best is None or d < best[0]):
+                    best = (d, v, "#E0A100", name)
+        if best:
+            return best[1], (best[1], best[2], best[3])
+        return ms, None
+
+    def _seek(self, x):
+        ms, self.snap = self._snapped(x)
         self.position = ms
         self.update()
         self.seekRequested.emit(ms)
@@ -746,7 +779,7 @@ class Timeline(QWidget):
     def _drag_edge(self, x, final):
         i, side = self.edit
         st, en = self.segments[i]
-        ms = self._ms(x)
+        ms, self.snap = self._snapped(x, exclude=i)
         if side == "start":
             st = max(0, min(ms, en - self.MIN_LEN))
             edge = st
@@ -783,10 +816,16 @@ class Timeline(QWidget):
             self._drag_edge(pos.x(), False)
             i, _side = self.edit
             st, en = self.segments[i]
-            QToolTip.showText(gp, f"구간 {i + 1}   {fmt_t1(st)} ~ {fmt_t1(en)}\n길이 {fmt_len(en - st)}", self)
+            extra = f"\n📌 {self.snap[2]}에 딱 맞춤" if self.snap else ""
+            QToolTip.showText(gp, f"구간 {i + 1}   {fmt_t1(st)} ~ {fmt_t1(en)}\n길이 {fmt_len(en - st)}{extra}", self)
             return
         if self.dragging:
             self._seek(pos.x())
+            if self.snap:
+                QToolTip.showText(gp, f"📌 {self.snap[2]}에 딱 맞춤\n{fmt_ms(self.snap[0])}", self)
+            else:
+                QToolTip.showText(gp, fmt_t1(self.position), self)
+            return
         if self.duration > 0:
             h = self._hit_handle(pos)
             self.setCursor(Qt.SizeHorCursor if h else Qt.PointingHandCursor)
@@ -805,10 +844,11 @@ class Timeline(QWidget):
         if self.edit:
             self._drag_edge(e.position().x(), True)
             self.edit = None
-            return
-        if self.dragging:
+        elif self.dragging:
             self.dragging = False
             self._seek(e.position().x())
+        self.snap = None
+        self.update()
 
     def leaveEvent(self, e):
         QToolTip.hideText()
