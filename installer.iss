@@ -1,10 +1,12 @@
-; Inno Setup script - MP4 Cutter installer
+; Inno Setup script - QuickSplit installer
 [Setup]
-AppName=MP4 Cutter
-AppVersion=1.0
-AppPublisher=MP4 Cutter
-DefaultDirName={autopf}\MP4 Cutter
-DefaultGroupName=MP4 Cutter
+AppId=MP4 Cutter
+AppName=QuickSplit
+AppVersion=2.0
+AppPublisher=QuickSplit
+DefaultDirName={autopf}\QuickSplit
+DefaultGroupName=QuickSplit
+UsePreviousGroup=no
 OutputDir=installer_output
 OutputBaseFilename=MP4Cutter_Setup
 Compression=lzma2
@@ -15,6 +17,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 UninstallDisplayIcon={app}\MP4Cutter.exe
+UninstallDisplayName=QuickSplit
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -22,10 +25,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "dist\MP4Cutter\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+Type: files; Name: "{autodesktop}\MP4 Cutter.lnk"
+Type: filesandordirs; Name: "{group}\..\MP4 Cutter"
+
 [Icons]
-Name: "{group}\MP4 Cutter"; Filename: "{app}\MP4Cutter.exe"
-Name: "{group}\Uninstall MP4 Cutter"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\MP4 Cutter"; Filename: "{app}\MP4Cutter.exe"; Tasks: desktopicon
+Name: "{group}\QuickSplit"; Filename: "{app}\MP4Cutter.exe"
+Name: "{group}\Uninstall QuickSplit"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\QuickSplit"; Filename: "{app}\MP4Cutter.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\MP4Cutter.exe"; Description: "{cm:LaunchProgram,MP4 Cutter}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\MP4Cutter.exe"; Description: "{cm:LaunchProgram,QuickSplit}"; Flags: nowait postinstall skipifsilent
